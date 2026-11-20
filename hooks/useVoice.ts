@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Room as LiveKitRoom } from 'livekit-client';
 import type { RoomSnapshot, Session, Signal, VoiceConfig } from '@/lib/model';
 import { appPath } from '@/lib/paths';
+import { connectionPathFromStats, type VoiceConnectionPath } from '@/lib/voice-diagnostics';
 
 type VoiceStatus = 'idle' | 'requesting' | 'waiting' | 'connecting' | 'connected' | 'error';
 type Props = { room: RoomSnapshot | null; session: Session | null; onVoiceChange: (enabled: boolean) => Promise<void> };
@@ -28,12 +29,14 @@ export function useVoice(props: Props) {
   const [needsPlayback, setNeedsPlayback] = useState(false);
   const [relayConfigured, setRelayConfigured] = useState(false);
   const [iceTransportPolicy, setIceTransportPolicy] = useState<RTCIceTransportPolicy>('all');
+  const [connectionPath, setConnectionPath] = useState<VoiceConnectionPath>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
   const livekitRef = useRef<LiveKitRoom | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const statsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const generation = useRef(0);
   const callRef = useRef('');
   const remoteIdRef = useRef('');
@@ -79,6 +82,9 @@ export function useVoice(props: Props) {
   const closePeer = useCallback(() => {
     if (connectionTimerRef.current) clearTimeout(connectionTimerRef.current);
     connectionTimerRef.current = null;
+    if (statsTimerRef.current) clearTimeout(statsTimerRef.current);
+    statsTimerRef.current = null;
+    if (mounted.current) setConnectionPath(null);
     const peer = peerRef.current;
     peerRef.current = null;
     if (peer) {
@@ -140,6 +146,32 @@ export function useVoice(props: Props) {
     stream.getTracks().forEach(track => pc.addTrack(track, stream));
     const outgoing: RTCIceCandidateInit[] = [];
     let descriptionSent = false;
+    let readingPath = false;
+    const currentPeer = () => generation.current === run && peerRef.current === pc && mounted.current;
+    const readPath = async () => {
+      if (!currentPeer() || pc.connectionState !== 'connected' || readingPath) return;
+      readingPath = true;
+      try {
+        const stats = await pc.getStats();
+        if (currentPeer() && pc.connectionState === 'connected') setConnectionPath(connectionPathFromStats(stats));
+      } catch { if (currentPeer()) setConnectionPath(null); }
+      finally {
+        readingPath = false;
+        if (currentPeer() && pc.connectionState === 'connected') {
+          if (statsTimerRef.current) clearTimeout(statsTimerRef.current);
+          statsTimerRef.current = setTimeout(() => void readPath(), 5000);
+        }
+      }
+    };
+    const watchConnection = () => {
+      if (connectionTimerRef.current) clearTimeout(connectionTimerRef.current);
+      connectionTimerRef.current = setTimeout(() => {
+        if (currentPeer() && pc.connectionState !== 'connected') {
+          setConnectionPath(null); setStatus('error');
+          setError('语音连接超时。可以重新连接，或关闭语音后使用连接检测。');
+        }
+      }, 30_000);
+    };
     pc.onicecandidate = event => {
       if (!event.candidate || generation.current !== run) return;
       const candidate = event.candidate.toJSON();
@@ -158,19 +190,19 @@ export function useVoice(props: Props) {
       if (generation.current !== run || peerRef.current !== pc || !mounted.current) return;
       if (pc.connectionState === 'connected') {
         if (connectionTimerRef.current) clearTimeout(connectionTimerRef.current);
+        connectionTimerRef.current = null;
         setStatus('connected'); setError(null);
+        void readPath();
       } else if (pc.connectionState === 'connecting' || pc.connectionState === 'disconnected') {
-        setStatus('connecting');
+        setStatus('connecting'); setConnectionPath(null); watchConnection();
       } else if (pc.connectionState === 'failed') {
-        setStatus('error'); setError('语音连接没有建立成功。可重试，或换一个网络后再连接。');
+        if (connectionTimerRef.current) clearTimeout(connectionTimerRef.current);
+        connectionTimerRef.current = null;
+        setConnectionPath(null); setStatus('error'); setError('语音连接没有建立成功。可以重新连接，或关闭语音后使用连接检测。');
       }
     };
     setStatus('connecting');
-    connectionTimerRef.current = setTimeout(() => {
-      if (generation.current === run && pc.connectionState !== 'connected' && mounted.current) {
-        setStatus('error'); setError('等待语音连接超时。当前网络可能需要音频中继，请重试或换一个网络。');
-      }
-    }, 30_000);
+    watchConnection();
     return {
       pc,
       async sentDescription() {
@@ -279,16 +311,16 @@ export function useVoice(props: Props) {
     mediaRoom.on(RoomEvent.TrackSubscribed, track => {
       if (track.kind !== Track.Kind.Audio || generation.current !== run) return;
       if (audioRef.current) { track.attach(audioRef.current); void enablePlayback(); }
-      setStatus('connected'); setError(null);
+      setStatus('connected'); setConnectionPath('livekit'); setError(null);
     });
     mediaRoom.on(RoomEvent.TrackUnsubscribed, track => {
       track.detach();
-      if (generation.current === run) setStatus('waiting');
+      if (generation.current === run) { setStatus('waiting'); setConnectionPath(null); }
     });
-    mediaRoom.on(RoomEvent.Reconnecting, () => { if (generation.current === run) setStatus('connecting'); });
-    mediaRoom.on(RoomEvent.Reconnected, () => { if (generation.current === run) setStatus(mediaRoom.remoteParticipants.size ? 'connected' : 'waiting'); });
+    mediaRoom.on(RoomEvent.Reconnecting, () => { if (generation.current === run) { setStatus('connecting'); setConnectionPath(null); } });
+    mediaRoom.on(RoomEvent.Reconnected, () => { if (generation.current === run) { setStatus(mediaRoom.remoteParticipants.size ? 'connected' : 'waiting'); setConnectionPath(mediaRoom.remoteParticipants.size ? 'livekit' : null); } });
     mediaRoom.on(RoomEvent.Disconnected, () => {
-      if (generation.current === run && mounted.current) { setStatus('error'); setError('语音连接已断开，请重新连接。'); }
+      if (generation.current === run && mounted.current) { setConnectionPath(null); setStatus('error'); setError('语音连接已断开，请重新连接。'); }
     });
     setStatus('connecting');
     await mediaRoom.connect(credentials.url, credentials.token);
@@ -301,8 +333,15 @@ export function useVoice(props: Props) {
   }, [request, enablePlayback]);
 
   const start = useCallback(async () => {
-    if (starting.current || !latest.current.room || !latest.current.session) return;
-    if (streamRef.current) await stopInternal();
+    if (starting.current || !latest.current.room || !latest.current.session || latest.current.room.status === 'ended') return;
+    if (streamRef.current) {
+      const stopped = stopInternal();
+      const stoppingGeneration = generation.current;
+      starting.current = true;
+      setStatus('requesting');
+      await stopped;
+      if (generation.current !== stoppingGeneration || !mounted.current) return;
+    }
     starting.current = true;
     const run = ++generation.current;
     setError(null); setStatus('requesting');
@@ -335,7 +374,10 @@ export function useVoice(props: Props) {
       }
     } catch (err) {
       if (generation.current !== run) return;
-      await stopInternal();
+      const stopped = stopInternal();
+      const stoppingGeneration = generation.current;
+      await stopped;
+      if (generation.current !== stoppingGeneration || !mounted.current) return;
       setError(friendlyError(err)); setStatus('error');
     } finally { if (generation.current === run) starting.current = false; }
   }, [request, startLiveKit, startP2P, stopInternal, sendSignal, changeVoiceState]);
@@ -382,5 +424,5 @@ export function useVoice(props: Props) {
     window.addEventListener('pageshow', onPageShow);
     return () => { window.removeEventListener('pagehide', onPageHide); window.removeEventListener('pageshow', onPageShow); };
   }, []);
-  return { status, error, muted, active, provider, start, stop, toggleMute, enablePlayback, needsPlayback, audioRef, relayConfigured, iceTransportPolicy };
+  return { status, error, muted, active, provider, start, retry: start, stop, toggleMute, enablePlayback, needsPlayback, audioRef, relayConfigured, iceTransportPolicy, connectionPath };
 }

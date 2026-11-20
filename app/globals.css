@@ -17,3 +17,30 @@
 @media(max-width:500px){.hero-copy>.eyebrow{font-size:12px}.template-card{padding-top:19px;padding-bottom:19px}.template-card>p{font-size:15px}.participants{align-items:stretch}.participant-info>strong{font-size:15px}.participant-info>span{font-size:14px}.participant .host-label,.participant .self-label{display:none}.participant{align-items:flex-start}.avatar{margin-top:4px}.voice-state{flex:1;min-width:180px}.voice-actions{margin-left:auto;flex-wrap:wrap}.voice-state>div>span{font-size:14px;line-height:1.5}.voice-state strong{font-size:15px}.voice-actions .button{font-size:14px}.voice-close{font-size:14px!important}.voice-bar{row-gap:10px}.journey-steps li strong{font-size:14px}.timer-label,.controller-caption{font-size:14px}.hero-art{opacity:.35}.hero-description{font-size:16px}.create-panel-bottom>p{font-size:14px;line-height:1.7}.join-panel p{font-size:14px}.interaction-panel{min-height:560px}.current-hint{font-size:15px}.room-header .text-button{font-size:14px}}
 
 .voice-network-hint{flex-basis:100%;margin:0;padding-top:10px;border-top:1px solid #344954;font-size:14px;line-height:1.7;color:var(--muted)}
+
+/* Voice diagnostics stay in document flow so an expanded report never fills the mobile sticky bar. */
+.voice-connection-path strong{color:var(--accent);font-weight:500}
+.voice-diagnostics{margin-top:11px;border:1px solid #2d3f4c;border-radius:13px;background:#14232e;overflow:hidden}
+.voice-diagnostics summary{display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer;list-style:none;padding:15px 21px;font-size:14px;color:#c7d4dc;min-height:50px}
+.voice-diagnostics summary::-webkit-details-marker{display:none}
+.voice-diagnostics summary:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:12px}
+.voice-diagnostics summary>span{display:inline-flex;align-items:center;gap:8px}
+.voice-diagnostics-summary-note{font-size:13px;color:var(--muted)}
+.voice-diagnostics-summary-note svg{transition:transform .2s}
+.voice-diagnostics[open] .voice-diagnostics-summary-note svg{transform:rotate(180deg)}
+.voice-diagnostics-body{padding:0 21px 19px;border-top:1px solid #273b48}
+.voice-check-intro{color:#a2b3bf;font-size:14px;line-height:1.85;margin-top:15px}
+.voice-check-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:13px}
+.voice-check-note{font-size:14px;line-height:1.8;color:var(--muted);margin-top:12px}
+.voice-check-rows{margin:16px 0 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:25px;row-gap:0}
+.voice-check-rows>div{display:flex;justify-content:space-between;align-items:baseline;gap:15px;min-width:0;padding:11px 0;border-bottom:1px solid #263b49;font-size:14px;line-height:1.7}
+.voice-check-rows dt{color:#a8b9c5;flex-shrink:0}
+.voice-check-rows dd{margin:0;text-align:right;min-width:0;overflow-wrap:anywhere}
+.voice-check-status-good{color:var(--accent)}
+.voice-check-status-neutral{color:#91a6b5}
+.voice-check-status-attention{color:#deb990}
+.voice-check-warning{font-size:14px;line-height:1.8;color:#e6b8a4;margin-top:13px}
+.voice-check-meta{font-size:13px;line-height:1.8;color:#8298a8;margin-top:10px}
+.voice-check-copy-fallback textarea{font-size:14px;line-height:1.75;min-height:180px;margin-top:10px;resize:vertical}
+@media(max-width:700px){.voice-check-rows{grid-template-columns:1fr}.voice-check-actions{gap:6px}}
+@media(max-width:500px){.voice-diagnostics{margin-top:11px;border-radius:12px}.voice-diagnostics summary{padding:13px 15px;gap:9px}.voice-diagnostics-summary-note{font-size:12px;gap:5px!important}.voice-diagnostics-body{padding:0 15px 16px}.voice-check-intro,.voice-check-note,.voice-check-warning{font-size:14px}.voice-check-meta{font-size:12px}.voice-check-copy-fallback textarea{font-size:16px}.voice-check-actions .button{min-height:40px}}
