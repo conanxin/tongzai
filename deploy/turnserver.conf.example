@@ -1,0 +1,21 @@
+# coturn 最小示例；使用前替换 IP、realm 和共享密钥占位。
+listening-port=3478
+listening-ip=0.0.0.0
+
+# 公网到私网映射：填入这台云服务器实际地址。
+relay-ip=PRIVATE_IPV4
+external-ip=PUBLIC_IPV4/PRIVATE_IPV4
+
+# 若机器直接持有公网地址，relay-ip 和 external-ip 填该公网地址。
+min-port=49160
+max-port=49200
+
+fingerprint
+use-auth-secret
+static-auth-secret=replace-with-your-own-shared-secret
+realm=voice.example.com
+
+# 示例仅启用 3478 UDP/TCP。配置有效证书后，才另行启用 5349 TURN/TLS。
+no-tls
+no-dtls
+no-cli

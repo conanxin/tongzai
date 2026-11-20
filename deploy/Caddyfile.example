@@ -1,0 +1,13 @@
+# 将域名替换成自己的域名。
+# 复用已有站点时，将以下 redir 和 handle 加入该域名的站点块。
+# 构建与运行应用时都使用 APP_BASE_PATH=/tongzai。
+example.com {
+    redir /tongzai /tongzai/ 308
+
+    # 保留 /tongzai 前缀；此处使用 handle，不使用 handle_path。
+    handle /tongzai/* {
+        reverse_proxy 127.0.0.1:3000
+    }
+
+    # 该域名的其他已有路由可继续放在此处。
+}

@@ -1,0 +1,17 @@
+[Unit]
+Description=Tongzai two-person interaction room
+After=network.target
+
+[Service]
+Type=simple
+User=tongzai
+Group=tongzai
+WorkingDirectory=/opt/tongzai
+Environment=NODE_ENV=production
+EnvironmentFile=/opt/tongzai/.env
+ExecStart=/usr/bin/node /opt/tongzai/standalone/server/index.mjs
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

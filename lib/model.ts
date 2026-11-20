@@ -1,0 +1,20 @@
+export type RoomStatus = 'waiting' | 'running' | 'paused' | 'ended';
+export type RoomMode = 'duo' | 'solo';
+export type TemplateId = 'conversation' | 'reading' | 'rehearsal';
+export type Member = { id: string; nickname: string; role: 'host' | 'guest'; ready: boolean; connected: boolean; voiceEnabled: boolean; lastSeenAt: number };
+export type RoomSnapshot = {
+  id: string; templateId: TemplateId; mode: RoomMode; durationMinutes: number;
+  status: RoomStatus; members: Member[]; controllerId: string; stepIndex: number;
+  revision: number; stepEndsAt: number | null; pausedRemainingMs: number | null;
+  createdAt: number; expiresAt: number; endedAt: number | null;
+  sharedNote: string; controlRequest: { from: string; to: string } | null;
+};
+export type Session = { memberId: string; token: string };
+export type RoomResponse = { room: RoomSnapshot; serverNow: number; session?: Session };
+export type RoomInfo = { id: string; templateId: TemplateId; mode: RoomMode; durationMinutes: number; status: RoomStatus; memberCount: number };
+export type ActionType = 'ready' | 'start' | 'next' | 'pause' | 'resume' | 'transfer' | 'accept_control' | 'decline_control' | 'end' | 'leave' | 'note' | 'voice';
+export type RoomAction = { actionId: string; type: ActionType; expectedRevision?: number; payload?: { ready?: boolean; note?: string; enabled?: boolean; targetId?: string } };
+export type Signal = { id: number; from: string; to: string; kind: 'offer' | 'answer' | 'ice' | 'hangup'; callId: string; payload: unknown; createdAt: number };
+export type VoiceConfig = { provider: 'p2p' | 'livekit'; livekitConfigured: boolean; iceServers: RTCIceServer[]; relayConfigured: boolean; stunConfigured?: boolean; credentialExpiresAt?: number; iceTransportPolicy?: RTCIceTransportPolicy };
+export type TemplateStep = { title: string; eyebrow: string; prompt: string; hint: string; weight: number };
+export type InteractionTemplate = { id: TemplateId; name: string; subtitle: string; description: string; color: string; icon: 'sparkles' | 'book' | 'mic'; tag: string; steps: TemplateStep[] };
